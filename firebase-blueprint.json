@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "plan": { "type": "string", "enum": ["Basic", "Pro", "Enterprise", "Premium"] },
+        "status": { "type": "string", "enum": ["Paid", "Pending", "Failed"] },
+        "startDate": { "type": "string", "format": "date" },
+        "nextRenewal": { "type": "string", "format": "date" },
+        "role": { "type": "string", "enum": ["user", "admin"] }
+      },
+      "required": ["uid", "name", "plan", "role"]
+    },
+    "Invoice": {
+      "title": "Invoice",
+      "description": "Represents a billing invoice.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Paid", "Pending", "Failed"] },
+        "userId": { "type": "string" }
+      },
+      "required": ["id", "amount", "date", "status"]
+    },
+    "AnalyticPoint": {
+      "title": "Analytic Point",
+      "description": "A single data point for analytics charts.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Month name" },
+        "revenue": { "type": "number" },
+        "users": { "type": "number" }
+      },
+      "required": ["name", "revenue", "users"]
+    },
+    "Plan": {
+      "title": "Subscription Plan",
+      "description": "Definition of a subscription tier.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "features": { "type": "array" },
+        "trialDays": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "price", "features"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and subscription info."
+    },
+    "/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "Global billing history."
+    },
+    "/analytics/{pointId}": {
+      "schema": "AnalyticPoint",
+      "description": "Time-series data for the dashboard."
+    },
+    "/plans/{planId}": {
+      "schema": "Plan",
+      "description": "Dynamic subscription tier definitions."
+    }
+  }
+}

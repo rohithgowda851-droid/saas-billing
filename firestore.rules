@@ -1,0 +1,93 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Entity Validations
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'plan', 'status', 'startDate', 'nextRenewal', 'role'])
+        && data.keys().size() >= 7 && data.keys().size() <= 9
+        && data.uid is string && data.uid.size() <= 128
+        && data.name is string && data.name.size() <= 100
+        && data.plan in ['Basic', 'Pro', 'Enterprise', 'Premium']
+        && data.status in ['Paid', 'Pending', 'Failed']
+        && data.startDate is string && data.startDate.size() <= 20
+        && data.nextRenewal is string && data.nextRenewal.size() <= 20
+        && data.role in ['user', 'admin']
+        && (!('email' in data) || (data.email is string && data.email.size() <= 255))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 50));
+    }
+
+    function isValidInvoice(data) {
+      return data.keys().hasAll(['id', 'amount', 'date', 'status', 'userId'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() <= 128
+        && data.amount is number
+        && data.date is string && data.date.size() <= 20
+        && data.status in ['Paid', 'Pending', 'Failed']
+        && data.userId is string && data.userId.size() <= 128;
+    }
+
+    function isValidAnalyticPoint(data) {
+      return data.keys().hasAll(['name', 'revenue', 'users'])
+        && data.keys().size() == 3
+        && data.name is string && data.name.size() <= 20
+        && data.revenue is number
+        && data.users is number;
+    }
+
+    function isValidPlan(data) {
+      return data.keys().hasAll(['id', 'name', 'price', 'features'])
+        && data.keys().size() >= 4 && data.keys().size() <= 6
+        && data.id is string && data.id.size() <= 32
+        && data.name is string && data.name.size() <= 50
+        && data.price is number && data.price >= 0
+        && data.features is list && data.features.size() <= 20
+        && (!('trialDays' in data) || (data.trialDays is number))
+        && (!('updatedAt' in data) || (data.updatedAt is string));
+    }
+
+    // Collection Rules
+    match /users/{userId} {
+      allow read: if isSignedIn(); // For demo purposes, allow signed-in users to see profiles
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming())
+        && incoming().diff(resource.data).affectedKeys().hasOnly(['name', 'plan', 'status', 'nextRenewal', 'role', 'updatedAt']);
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid);
+      allow create, update: if isSignedIn() && isValidInvoice(incoming()); // Simplified for demo setup
+    }
+
+    match /analytics/{pointId} {
+      allow read: if true;
+      allow write: if false; // System-generated only
+    }
+
+    match /plans/{planId} {
+      allow read: if true;
+      allow write: if isSignedIn() && (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') && isValidPlan(incoming());
+    }
+  }
+}
